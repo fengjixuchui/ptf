@@ -1,23 +1,23 @@
 #!/usr/bin/env python
 #####################################
-# Installation module for MITM6
+# Installation module for onedrive_user_enum
 #####################################
 
 # AUTHOR OF MODULE NAME
-AUTHOR="David Kennedy (ReL1K)"
+AUTHOR="Matt (hostess) Andreko"
 
 # DESCRIPTION OF THE MODULE
-DESCRIPTION="This module will install MITM6 a IPv4 and IPv6 man-in-the-middle (MITM) tool."
+DESCRIPTION="This module will install/update onedrive_user_enum - a user enumeration tool for MS OneDrive"
 
 # INSTALL TYPE GIT, SVN, FILE DOWNLOAD
 # OPTIONS = GIT, SVN, FILE
 INSTALL_TYPE="GIT"
 
 # LOCATION OF THE FILE OR GIT/SVN REPOSITORY
-REPOSITORY_LOCATION="https://github.com/fox-it/mitm6"
+REPOSITORY_LOCATION="https://github.com/nyxgeek/onedrive_user_enum.git"
 
 # WHERE DO YOU WANT TO INSTALL IT
-INSTALL_LOCATION="mitm6"
+INSTALL_LOCATION="onedrive_user_enum"
 
 # DEPENDS FOR DEBIAN INSTALLS
 DEBIAN="git,python-pip"
@@ -26,10 +26,8 @@ DEBIAN="git,python-pip"
 FEDORA="git,python-pip"
 
 # COMMANDS TO RUN AFTER
-AFTER_COMMANDS="cd {INSTALL_LOCATION},python setup.py install"
+AFTER_COMMANDS="cd {INSTALL_LOCATION},pip install requests"
 
-# THIS WILL CREATE AN AUTOMATIC LAUNCHER FOR THE TOOL
-LAUNCHER=""
+# CREATE LAUNCHER
+LAUNCHER="onedrive_user_enum"
 
-# PREREQ INSTALL MODULES NEEDED FOR THIS TOOL TO WORK PROPERLY
-TOOL_DEPEND=""

@@ -1,4 +1,23 @@
 ~~~~~~~~~~~~~~~~~
+version 2.3.8
+~~~~~~~~~~~~~~~~~
+
+* update spiderfoot installation for python3
+
+~~~~~~~~~~~~~~~~~
+2.3.7
+~~~~~~~~~~~~~~~~~
+
+* commit PR changes for new tools and fixes
+* fixed kerbrute installer and moved location to exploitation
+
+~~~~~~~~~~~~~~~~~
+2.3.6
+~~~~~~~~~~~~~~~~~
+
+* add 15 new tools
+
+~~~~~~~~~~~~~~~~~
 2.3.5
 ~~~~~~~~~~~~~~~~~
 

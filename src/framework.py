@@ -44,7 +44,7 @@ print_status("Operating system detected as: " + bcolors.BOLD + os_profile + bcol
 
 # main intro here
 if profile_os() == "DEBIAN":
-    subprocess.Popen("sudo dpkg --add-architecture i386", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    subprocess.Popen("sudo dpkg --add-architecture i386", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
 
 print_status("Welcome to PTF - where everything just works...Because.." +
              bcolors.BOLD + funny + bcolors.ENDC)
@@ -166,16 +166,14 @@ def show_new_modules():
         for name in sorted(files):
             filename = os.path.join(path, name)
             if not name in ('__init__.py', 'install_update_all.py', 'update_installed.py'):
-                filename_short = filename.replace(os.getcwd() +"/","")
-                filename_short = filename_short.replace(".py","")
-                filename_short = str(filename_short)
+                module = filename_to_module(filename)
                 description = module_parser(filename, "DESCRIPTION")
                 location = module_parser(filename,"INSTALL_LOCATION")
                 if not ((location is None) or (os.path.exists(os.path.join(path.replace("ptf/modules/",""), location)))):
                     if description != None:
-                        temp_number = 53 - len(filename_short)
+                        temp_number = 53 - len(module)
                         print(
-                            "   " + filename_short + " " * temp_number + description)
+                            "   " + module + " " * temp_number + description)
     print("\n")
 
 # this is here if you need to access to a gitlab with a password for your keyphrase
@@ -186,8 +184,33 @@ def get_password_gitlab():
     if password_gitlab == "":
         password_gitlab = getpass.getpass('Enter passphrase for Gitlab modules key (let blank if no passphrase) : ')
 
+def discover_module_filename(module):
+    SPECIAL_MODULE_NAMES = ("install_update_all", "update_installed", "custom_list", "__init__",)
+    module_suffix = ".txt" if "custom_list" in module else ".py"
+
+    # is module already a path?
+    if '/' in module or any(map(module.__contains__, SPECIAL_MODULE_NAMES)):
+        return definepath() + "/" + module + module_suffix
+
+    # find module
+    modules_path = os.getcwd() + "/modules/"
+    for path, subdirs, files in os.walk(modules_path):
+        for name in sorted(files):
+            if name in ('__init__.py', 'install_update_all.py', 'update_installed.py'):
+                continue
+            name_short = name.replace(".py","")
+            if name_short == module:
+               return os.path.join(path, name)
+
+    raise Exception("module not found")
+
+def filename_to_module(filename):
+    module = filename.replace(os.getcwd() +"/","").replace(".py","")
+    return str(module)
+
 # this is when a use <module> command is initiated
 def use_module(module, all_trigger):
+
     prompt = ("")
     # if we aren't using all
     if not "install_update_all" in module and not "update_installed" in module and not "__init__" in module and not "custom_list" in module:
@@ -197,7 +220,8 @@ def use_module(module, all_trigger):
 
         # if we are using a normal module
         if int(all_trigger) == 0 or int(all_trigger) == 1 or int(all_trigger) == 2:
-            filename = definepath() + "/" + module + ".py"
+            filename = discover_module_filename(module)
+            module = filename_to_module(filename)
 
             # grab the author
             try:
@@ -434,6 +458,8 @@ def use_module(module, all_trigger):
                                         prompt = "goat"
                             except:
                                 pass
+                            finally:
+                                proc.wait()
                             print_status("Finished Installing! Enjoy the tool installed under: " + (install_location))
                             # check launcher
                             launcher(filename, install_location)
@@ -515,8 +541,9 @@ def use_module(module, all_trigger):
                                 proc.expect('passphrase')
                                 proc.sendline('%s' % password_gitlab)
                                 proc.expect(pexpect.EOF)
+                                proc.wait()
                             else:
-                                proc = subprocess.Popen("cd %s;git pull" % (install_location), stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                                subprocess.Popen("cd %s;git pull" % (install_location), stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
                             print_status("Finished updating the tool located in:" + install_location)
                         else:
                             print_status("%s was the selected method for installation... Using %s to install." % (install_type.upper(), install_type.upper()))
@@ -528,7 +555,7 @@ def use_module(module, all_trigger):
                                 proc.sendline('%s' % password_gitlab)
                                 proc.expect(pexpect.EOF)
                             else:
-                                proc = subprocess.Popen("git clone %s %s" % (repository_location, install_location), stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                                subprocess.Popen("git clone %s %s" % (repository_location, install_location), stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
 
                             print_status("Finished Installing! Enjoy the tool located under: " + install_location)
                         after_commands(filename, install_location)
@@ -538,7 +565,7 @@ def use_module(module, all_trigger):
                     if install_type.lower() == "svn":
                         print_status(
                             "SVN was the selected method for installation... Using SVN to install.")
-                        proc = subprocess.Popen("svn co %s %s" % (
+                        subprocess.Popen("svn co %s %s" % (
                             repository_location, install_location), stderr=subprocess.PIPE, shell=True).wait()
                         print_status(
                             "Finished Installing! Enjoy the tool located under: " + install_location)
@@ -550,7 +577,7 @@ def use_module(module, all_trigger):
                         print_status(
                             "FILE was the selected method for installation... Using curl -o to install.")
                         repository_file = repository_location.split("/")[-1]
-                        proc = subprocess.Popen('curl -k -L -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/534.30 (KHTML, like Gecko) Chrome/12.0.742.112 Safari/534.30" -o %s%s %s' % (
+                        subprocess.Popen('curl -k -L -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/534.30 (KHTML, like Gecko) Chrome/12.0.742.112 Safari/534.30" -o %s%s %s' % (
                             install_location, repository_file, repository_location), stderr=subprocess.PIPE, shell=True).wait()
                         print_status(
                             "Finished Installing! Enjoy the tool located under: " + install_location)
@@ -561,7 +588,7 @@ def use_module(module, all_trigger):
                     if install_type.lower() == "wget":
                         print_status(
                             "WGET was the selected method for installation because it plays better than curl -l with recursive URLs.")
-                        proc = subprocess.Popen(
+                        subprocess.Popen(
                             "cd %s && wget -q %s" % (
                                 install_location, repository_location),
                                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
@@ -672,7 +699,7 @@ def handle_prompt(prompt, force=False):
 
                 for path, subdirs, files in os.walk(modules_path):
                     for name in files:
-                        if "custom_list" in prompt[1] and name[:-3] not in open(definepath() + "/" + prompt[1] + ".py").read():
+                        if "custom_list" in prompt[1] and name[:-4] not in open(definepath() + "/" + prompt[1] + ".txt").read():
                             break
                         # join the structure
                         filename = os.path.join(path, name)
@@ -746,7 +773,7 @@ def handle_prompt(prompt, force=False):
 
                 for path, subdirs, files in os.walk(modules_path):
                     for name in files:
-                        if "custom_list" in prompt[1] and name[:-3] not in open(definepath() + "/" + prompt[1] + ".py").read():
+                        if "custom_list" in prompt[1] and name[:-4] not in open(definepath() + "/" + prompt[1] + ".txt").read():
                             break
                         # join the structure
                         filename = os.path.join(path, name)
@@ -805,7 +832,7 @@ def handle_prompt(prompt, force=False):
                                 print(("Updating %s") % module)
                                 use_module(module, 2)
 
-        if os.path.isfile(definepath() + "/" + prompt[1] + ".py"):
+        if os.path.isfile(discover_module_filename(prompt[1])):
             counter = 1
 
         if counter == 1:
