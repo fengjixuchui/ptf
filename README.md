@@ -59,7 +59,12 @@ This will only install the exploitation modules. You can do this for any module 
 
 ### Customize your own installed tools
 
-You can install only the tools you want to by going to the modules/custom_list/list.py section. Modify the list.py file and add the tools you only want to install or update.
+You can install only the tools you want to by going to the modules/custom_list/list.txt section. Modify the list.txt file and add the tools you only want to install or update.
+
+Example list.txt file:
+
+modules/exploitation/metasploit
+modules/post-exploitation/unicorn
 
 Then when in PTF:
 
@@ -70,6 +75,14 @@ yes
 ```
 
 This allows you to carry your module configuration over and only install the tools that you want and keep them updated.
+
+You can also simply specify a module without using the category:
+
+```
+./ptf
+use trevorc2
+yes
+```
 
 ### Modules:
 
@@ -175,3 +188,14 @@ The `IGNORE_UPDATE_ALL_MODULES=` config option can be found under config/ptf.con
 The `INCLUDE_ONLY_THESE_MODULES` in the config option under config/ptf.config will only install and include specific modules that are specified here. This is good for baselining the tools that you want and install only them.
 
 
+### LAUNCH PTF WITH NO BANNER
+
+You can launch PTF with no banner message if you want. Simply specify:
+
+```
+./ptf --no-banner
+
+or 
+
+./ptf -nb
+```
