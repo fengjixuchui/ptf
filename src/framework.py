@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # PTF Main framework look and feel
 #
@@ -10,13 +11,13 @@ import readline
 import os
 import time
 import getpass
-
+from src.ptflogger import info, error, log
 try: 
     import pexpect
     pexpect_check = 1
 except: 
     print("[!] python-pexpect not installed, gitlab will not work")
-    print("[!] Run pip install python-pexpect to install pexpect for gitlab support.")
+    print("[!] Run pip install pexpect to install pexpect for gitlab support.")
     pexpect_check = 0
 
 # python 2 compatibility
@@ -234,6 +235,35 @@ def use_module(module, all_trigger):
             install_type = module_parser(filename, "INSTALL_TYPE")
             # if were are tool depends for other modules prior to install
             tool_depend = module_parser(filename, "TOOL_DEPEND")
+            # Since unicorn requires metasploit to be installed in order to generate the payloads,
+            # by default PTF will install or update metasploit.
+            # Here it will ask what the user wants to do for if they already have msf installed
+            # If they do, it will skip, else it will install
+            if 'metasploit' in tool_depend and 'unicorn' in module:
+                print_warning("Unicorn requires Metasploit Framework to be installed.")
+                # Check if metasploit is installed
+                if os.path.isdir("/opt/metasploit-framework/") or os.path.isdir("/usr/share/metasploit-framework/"):
+                    print_info("Seems like you have Metasploit Framework already installed")
+                    install_unicorn = input("Do you want to update metasploit? (y/n) (default is yes) ").lower()
+                    # Do we want to update metasploit now or later
+                    # If yes, then this will run as this part never existed
+                    if install_unicorn == 'y':
+                        print_info("Once you enter run, update, install or upgrade I will install metasploit for you")
+                        pass
+                    # If we do not want to update, then it will skip metasploit update
+                    elif install_unicorn == 'n':
+                        print_info("Skipping metasploit installation/update")
+                        tool_depend = ""
+                    else:
+						# If we enter anything but 'y' or 'n', it will continue like normal
+                        print_info("No input detected. I will continue as normal and update metasploit")
+                        pass
+                else:
+					# If metasploit is not installed, then we will run as this part never existed
+                    print_warning("Metasploit Framework is NOT installed. Therefore, I will install it for you")
+                    pass
+            else:
+                 pass
             # if the module path is wrong, throw a warning
             try:
                 if not os.path.isfile(tool_depend + ".py"):
@@ -277,7 +307,10 @@ def use_module(module, all_trigger):
             if int(all_trigger) == 0:
                 try:
                     prompt = input(bcolors.BOLD + "ptf:" + bcolors.ENDC + "(" + bcolors.RED + "%s" % module + bcolors.ENDC + ")>")
-                except EOFError:
+                    info("Options after module has been chosen")
+                    info(prompt)
+                except EOFError as eof:
+                    error(eof)
                     prompt = "back"
                     print("")
 
@@ -298,6 +331,9 @@ def use_module(module, all_trigger):
 
                 # if we are searching for something
                 if "search " in prompt:
+                    search(prompt)
+                if "show " in prompt:
+                    prompt = split("/","")[1]
                     search(prompt)
 
                 # options menu - was a choice here to load upon initial load of dynamically pull each time
@@ -361,13 +397,26 @@ def use_module(module, all_trigger):
                 check_blank_dir(install_location)
 
                 if os.path.isdir(install_location):
-                    print_status(
-                        "Detected installation already. Going to upgrade for you.")
+                    print_status("Detected installation already. Going to upgrade for you.")
                     prompt = "update"
                 else:
-                    print_status(
-                        "Tool not installed yet, will run through install routine")
+                    print_status("Tool not installed yet, will run through install routine")
                     prompt = "install"
+
+            def log_output():
+                # Log proc output into the log file
+                def check_io():
+                    output = ""
+                    while True:
+                        output = proc.stdout.readline().decode()
+                        output = output.replace("\n","")
+                        if output:
+                            info(output)
+                        else:
+                            break
+                    if output != "":
+                        while proc.poll() is None:
+                            check_io()
 
             # check to see if we need to bypass after commands for certain
             # files - this is needed when using FILE and others where after
@@ -382,8 +431,11 @@ def use_module(module, all_trigger):
                     # move to the location
                     if os.path.isdir(install_location):
                         if install_type.lower() == "git":
-                            print_status("Updating the tool, be patient while git pull is initiated.")
+                            msg = "Updating %s , be patient while git pull is initiated" % module
+                            print_status(msg)
+                            info(msg)
                             proc = subprocess.Popen("cd %s;git pull" % (install_location), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                            log_output()
                             # check launcher
                             launcher(filename, install_location)
                             # here we check to see if we need anything we need to
@@ -392,8 +444,13 @@ def use_module(module, all_trigger):
                             if not "Already up-to-date." in proc.communicate():
                                 after_commands(filename, install_location)
                                 update_counter = 1
-                            else: print_status("Tool already up-to-date!")
-                            print_status("Finished Installing! Enjoy the tool installed under: " + (install_location))
+                            else: 
+                                print_status("Tool already up-to-date!")
+                                log("Tool already up-to-date")
+                            
+                            msg = "Finished Installing! Enjoy the tool installed under: " + install_location
+                            print_status(msg)
+                            log(msg)
                             # run after commands
                             if update_counter == 0:
                                     after_commands(filename, install_location)
@@ -459,45 +516,61 @@ def use_module(module, all_trigger):
                 if not "__init__.py" in filename and not ignore_module(filename):
                     # grab the OS type, DEBIAN, FEDORA, CUSTOM, BSD!!!! WOW!!,
                     ostype = profile_os()
+                    # Global msg for below preparing dependencies for module
+                    msg_prep_dpns = "Preparing dependencies for module: " + module
+                    msg_prep_reqs = "Pre-reqs for %s have been installed." % module
                     # if OSTYPE is DEBIAN
                     if ostype == "DEBIAN":
-                        print_status("Preparing dependencies for module: " + module)
+                        print_status(msg_prep_dpns)
+                        info(msg_prep_dpns)
                         from src.platforms.debian import base_install_modules
                         # grab all the modules we need
                         deb_modules = module_parser(filename, "DEBIAN")
                         base_install_modules(deb_modules)
-                        print_status("Pre-reqs for %s have been installed." % (module))
+                        print_status(msg_prep_reqs)
+                        info(msg_prep_reqs)
                     # if OSTYPE is ARCHLINUX
                     if ostype == "ARCHLINUX":
-                        print_status("Preparing dependencies for module: " + module)
+                        print_status(msg_prep_dpns)
+                        info(msg_prep_dpns)
                         from src.platforms.archlinux import base_install_modules
                         # grab all the modules we need
                         arch_modules = module_parser(filename, "ARCHLINUX")
                         base_install_modules(arch_modules)
-                        print_status("Pre-reqs for %s have been installed." % (module))
+                        print_status(msg_prep_reqs)
+                        info(msg_prep_reqs)
                     # if OSTYPE is FEDORA
                     if ostype == "FEDORA":
-                        print_status("Preparing dependencies for module: " + module)
+                        print_status(msg_prep_dpns)
+                        info(msg_prep_dpns)
                         from src.platforms.fedora import base_install_modules
                         # grab all the modules we need
                         fedora_modules = module_parser(filename, "FEDORA")
                         base_install_modules(fedora_modules)
-                        print_status("Pre-reqs for %s have been installed." % (module))
+                        print_status(msg_prep_reqs)
+                        info(msg_prep_reqs)
                     # if OSTYPE is OPENBSD
                     if ostype == "OPENBSD":
-                        print_status("Preparing dependencies for module: " + module)
+                        print_status(msg_prep_dpns)
+                        info(msg_prep_dpns)
                         from src.platforms.openbsd import base_install_modules
                         # grab all the modules we need
                         openbsd_modules = module_parser(filename, "OPENBSD")
                         base_install_modules(openbsd_modules)
-                        print_status("Pre-reqs for %s have been installed." % (module))
-                    print_status("Making the appropriate directory structure first")
+                        print_status(msg_prep_reqs)
+                        info(msg_prep_reqs)
+
+                    msg = "Making the appropriate directory structure first"
+                    print_status(msg)
+                    info(msg)
                     subprocess.Popen("mkdir -p %s" % install_location, shell=True).wait()
                     # if we are using git
                     if install_type.lower() in ["git","gitlab"]:
                         # if there are files in the install_location, we'll update.
                         if os.listdir(install_location):
-                            print_status("Installation already exists, going to git pull then run after commands..")
+                            msg = "Installation already exists, going to git pull then run after commands.."
+                            info(msg)
+                            print_status(msg)
                             if install_type.lower() == "gitlab":
                                 get_password_gitlab()
                                 proc = pexpect.spawn('git -C %s pull' % (install_location))
@@ -507,19 +580,29 @@ def use_module(module, all_trigger):
                                 proc.wait()
                             else:
                                 subprocess.Popen("cd %s;git pull" % (install_location), stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
-                            print_status("Finished updating the tool located in:" + install_location)
+
+                            msg = "Finished updating the tool located in:" + install_location
+                            print_status(msg)
+                            info(msg)
                         else:
-                            print_status("%s was the selected method for installation... Using %s to install." % (install_type.upper(), install_type.upper()))
+                            msg = "%s was the selected method for installation... Using %s to install." % (install_type.upper(), install_type.upper())
+                            print_status(msg)
+                            info(msg)
                             print_status("Installing now.. be patient...")
+                            info("Installing now.. be patient...")
                             if install_type.lower() == "gitlab":
                                 get_password_gitlab()
                                 proc = pexpect.spawn('git clone --depth=1 %s %s' % (repository_location, install_location))
+                                log_output()
                                 proc.expect('passphrase')
                                 proc.sendline('%s' % password_gitlab)
                                 proc.expect(pexpect.EOF)
                             else:
-                                subprocess.Popen("git clone --depth=1 %s %s" % (repository_location, install_location), stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
-                            print_status("Finished Installing! Enjoy the tool located under: " + install_location)
+                                proc = subprocess.Popen("git clone --depth=1 %s %s" % (repository_location, install_location), stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True).wait()
+                                log_output()
+                            msg = "Finished Installing! Enjoy the tool located under: " + install_location
+                            info(msg)
+                            print_status(msg)
                         after_commands(filename, install_location)
                         launcher(filename, install_location)
                     # if we are using svn
@@ -770,12 +853,18 @@ def handle_prompt(prompt, force=False):
         print_warning("Command was not found, try help or ? for more information.")
 # start the main loop
 def mainloop():
+    has_run = 0
     while 1:
+        has_run += 1
         # set title
         set_title("The PenTesters Framework (PTF) v%s" % grab_version)
+        if not has_run >= 2:
+            print_info("[!] Logs are now outputed into the directory of cloned ptf under name 'ptf-output.log'")
         try:
             prompt = input(bcolors.BOLD + "ptf" + bcolors.ENDC + "> ")
-        except EOFError:
+            info(prompt)
+        except EOFError as eof:
+            error(eof)
             prompt = "quit"
             print("")
         handle_prompt(prompt)

@@ -1,35 +1,33 @@
 #!/usr/bin/env python
 #####################################
-# Installation module for SMBMap
+# Installation module for dnstwist
 #####################################
 
 # AUTHOR OF MODULE NAME
-AUTHOR="Corey Batiuk (Skapunker)"
+AUTHOR="Jason Ashton (ninewires)"
 
 # DESCRIPTION OF THE MODULE
-DESCRIPTION="This module will install/update the SMB enumeration tool SMBMap"
+DESCRIPTION="This module will install/update dnstwist - Domain name permutation engine for detecting homograph phishing attacks, typo squatting, and brand impersonation"
 
 # INSTALL TYPE GIT, SVN, FILE DOWNLOAD
 # OPTIONS = GIT, SVN, FILE
 INSTALL_TYPE="GIT"
 
 # LOCATION OF THE FILE OR GIT/SVN REPOSITORY
-REPOSITORY_LOCATION="https://github.com/ShawnDEvans/smbmap"
+REPOSITORY_LOCATION=""
 
 # WHERE DO YOU WANT TO INSTALL IT
-INSTALL_LOCATION="smbmap"
+INSTALL_LOCATION="dnstwist"
 
 # DEPENDS FOR DEBIAN INSTALLS
-DEBIAN="git,python3-pip"
+DEBIAN="git,python-pip,python3-dnspython python3-tld python3-geoip python3-whois python3-requests python3-ssdeep"
 
 # DEPENDS FOR FEDORA INSTALLS
-FEDORA="git,python3-pip"
+FEDORA="git,python-pip"
 
 # COMMANDS TO RUN AFTER
 AFTER_COMMANDS="cd {INSTALL_LOCATION},python3 -m pip install -r requirements.txt"
 
-# THIS WILL CREATE AN AUTOMATIC LAUNCHER FOR THE TOOL
-LAUNCHER="smbmap"
+# CREATE LAUNCHER
+LAUNCHER="dnstwist"
 
-# PREREQ INSTALL MODULES NEEDED FOR THIS TOOL TO WORK PROPERLY
-TOOL_DEPEND=""
